@@ -1,0 +1,42 @@
+body {
+    background-color: #66757f;
+    color: #e1e8ed;
+}
+
+.split-line {
+    height: 1px;
+    width: 200px;
+    background-color: rgb(180, 177, 177);
+}
+
+.post {
+    border-radius: 10px;
+}
+
+.fullheart {
+    color: #ec5273;
+}
+
+.span {
+    color: red;
+    font-size: smaller;
+}
+
+.pointer {
+    cursor: pointer;
+}
+
+#newpost-body {
+    border-radius: 10px;
+    border: none;
+    outline: none;
+}
+
+#newpost-body:focus {
+    outline: none;
+}
+
+.buttondiv {
+    display: flex;
+    justify-content: center;
+}

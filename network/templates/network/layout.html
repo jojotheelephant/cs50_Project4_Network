@@ -1,0 +1,63 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>{% block title %}Social Network{% endblock %}</title>
+        <!-- bootstrap  -->
+        <link
+            rel="stylesheet"
+            href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+            integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+            crossorigin="anonymous"
+        />
+        <!-- bootstrap icons -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.0/font/bootstrap-icons.css" />
+        <link href="{% static 'network/styles.css' %}" rel="stylesheet" />
+        <script src="{% static 'network/index.js' %}" defer></script>
+        <!-- react import  -->
+
+        <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    </head>
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <a class="navbar-brand" href="#">Hogwart's Network</a>
+
+            <div>
+                <ul class="navbar-nav mr-auto">
+                    {% if user.is_authenticated %}
+                    <li id="currentUser" class="nav-item ml-5 text-right">
+                        <a class="nav-link" href="#"><strong>{{ user.username }}</strong></a>
+                    </li>
+                    {% endif %}
+                    <li id="all-posts" class="pointer nav-item ml-5 text-right">
+                        <a class="nav-link">All Posts</a>
+                    </li>
+                    {% if user.is_authenticated %}
+                    <li id="following" class="pointer nav-item text-right">
+                        <a class="nav-link">Following</a>
+                    </li>
+                    <li class="nav-item ml-5">
+                        <a class="nav-link" href="{% url 'logout' %}"
+                            >Log Out<i class="bi bi-box-arrow-right ml-2"></i
+                        ></a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item ml-5">
+                        <a class="nav-link" href="{% url 'login' %}"
+                            ><i class="bi bi-box-arrow-in-right mr-1"></i> Log In</a
+                        >
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'register' %}">Register</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </nav>
+
+        <div class="body">{% block body %} {% endblock %}</div>
+        <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    </body>
+</html>

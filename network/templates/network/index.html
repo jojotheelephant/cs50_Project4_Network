@@ -1,0 +1,796 @@
+{% extends "network/layout.html" %} {% block body %}
+<!-- this is where we place all post page -->
+
+<div class="all-posts mt-5">
+    {% if user.is_authenticated %}
+
+    <div id="react_post">
+        <!-- // insert react here. This is to generate the front end list of POSTS -->
+        <script defer type="text/babel">
+            /*
+                React Component Structure
+                    - App
+                        - AllPosts
+                            - NewPost (need csrfToken)
+                            - Posts
+                        - ProfilePage
+                            - Profile (need csrfToken)
+                            - Posts
+                        - FollowingPage
+                            - Posts
+
+            */
+
+            // ````````````````````````````````````````````````````
+            class NewPost extends React.Component {
+                constructor(props) {
+                    super(props);
+                }
+
+                // Display Post Status Message for new_posts
+                displayPostMessage = (message) => {
+                    const post_message = document.querySelector("#newpost_message");
+                    document.querySelector("#newpost-body").value = "";
+                    message === "Post successful"
+                        ? (post_message.style.color = "lightgreen")
+                        : (post_message.style.color = "red");
+                    post_message.innerHTML = message;
+                    setTimeout(() => (post_message.innerHTML = ""), 5000);
+                };
+
+                // New post using async await
+                new_post = async (event) => {
+                    event.preventDefault();
+                    const post_message = document.querySelector("#newpost_message");
+                    // add content here
+                    let formData = new FormData();
+                    formData.append("body", document.querySelector("#newpost-body").value);
+                    // POST request config
+                    const requestOptions = {
+                        method: "POST",
+                        body: formData,
+                        credentials: "same-origin",
+                        headers: {
+                            "X-CSRFToken": this.props.csrftoken,
+                        },
+                        redirect: "follow",
+                    };
+                    // send fetch with config request using async await try catch
+                    try {
+                        const response = await fetch("/newpost", requestOptions);
+                        const data = await response.json();
+                        if (data.message) {
+                            this.displayPostMessage(data.message);
+                        } else if (data.error) {
+                            this.displayPostMessage(data.error);
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                render() {
+                    return (
+                        <div className="all-posts mt-5">
+                            <div className="new-post mx-auto container">
+                                <h2 className="mb-1">
+                                    What's on your mind?
+                                    <span id="newpost_message" className="mx-4 span"></span>
+                                </h2>
+                                <form
+                                    id="post-form"
+                                    onSubmit={this.new_post}
+                                    className="form-group mx-3"
+                                    action="#"
+                                    method="post"
+                                >
+                                    <input type="hidden" name="csrfmiddlewaretoken" value={this.props.csrftoken} />
+                                    <div className="mb-3">
+                                        <textarea
+                                            autoFocus
+                                            className="form-control"
+                                            type="form"
+                                            name="newpost"
+                                            id="newpost-body"
+                                            rows="true"
+                                        ></textarea>
+                                    </div>
+                                    <div className="text-left">
+                                        <input className="btn btn-primary" type="submit" value="Post" />
+                                    </div>
+                                </form>
+                            </div>
+                            <div className="split-line mx-auto container my-4"></div>
+                        </div>
+                    );
+                }
+            }
+
+            // ````````````````````````````````````````````````````
+            class Post extends React.Component {
+                constructor(props) {
+                    super(props);
+                    this.state = {
+                        edit: false,
+                        bodyContent: this.props.body,
+                    };
+                    this.handleChange = this.handleChange.bind(this);
+                }
+
+                toggleEdit() {
+                    console.log("toggleEdit triggered", this.state.edit);
+                    if (this.state.edit == false) {
+                        this.setState({ edit: true }, () => console.log("should be true", this.state.edit));
+                    } else {
+                        this.setState({ edit: false }, () => console.log("should be true", this.state.edit));
+                    }
+                }
+
+                handleChange(event) {
+                    event.preventDefault();
+                    this.setState({ bodyContent: event.target.value }, () => {
+                        console.log(this.state.bodyContent);
+                    });
+                }
+
+                render() {
+                    return (
+                        <div className="post mx-auto container my-3 p-4 bg-light text-dark">
+                            <div className="d-flex justify-content-between">
+                                {!this.props.profilePage ? (
+                                    <h5
+                                        id="post_poster"
+                                        className="pointer"
+                                        onClick={() => this.props.profileAction(this.props.name)}
+                                    >
+                                        {this.props.name}
+                                    </h5>
+                                ) : (
+                                    <h5 id="post_poster">{this.props.name}</h5>
+                                )}
+
+                                <p id="post_timestamp">{this.props.date}</p>
+                            </div>
+                            <div id="post_body">
+                                {this.state.edit ? (
+                                    <div>
+                                        <div className="mb-3">
+                                            <textarea
+                                                autoFocus
+                                                className="form-control"
+                                                type="form"
+                                                name="updateBody"
+                                                id="update-body"
+                                                rows="true"
+                                                value={this.state.bodyContent}
+                                                onChange={this.handleChange}
+                                            ></textarea>
+                                        </div>
+                                        <div className="text-right">
+                                            <button
+                                                className="btn btn-secondary btn-sm"
+                                                onClick={() => {
+                                                    this.toggleEdit();
+                                                }}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                className="btn btn-primary btn-sm ml-2"
+                                                onClick={() => {
+                                                    this.props.updateBody(this.state.bodyContent, this.props.id);
+                                                    this.toggleEdit();
+                                                }}
+                                            >
+                                                Update
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p>{this.props.body}</p>
+                                )}
+                            </div>
+                            <div className="d-flex post_likes">
+                                <div className="post_heart-icon mr-1 mt-1">
+                                    {this.props.liked == true ? (
+                                        <h5 className="fullheart bi bi-heart-fill"></h5>
+                                    ) : (
+                                        <h5 className="bi bi-heart"></h5>
+                                    )}
+                                </div>
+                                <h4 className="mx-1 mr-2">{this.props.likes}</h4>
+                                {!this.props.liked ? (
+                                    <button
+                                        className="btn btn-success btn-sm"
+                                        onClick={() => this.props.updateLike("like", this.props.id)}
+                                    >
+                                        Like
+                                    </button>
+                                ) : (
+                                    <button
+                                        className="btn btn-outline-success btn-sm"
+                                        onClick={() => this.props.updateLike("unlike", this.props.id)}
+                                    >
+                                        Unlike
+                                    </button>
+                                )}
+                                {this.props.currentUserUsername === this.props.name && (
+                                    <button
+                                        className="btn btn-info btn-sm ml-2"
+                                        onClick={() => {
+                                            this.toggleEdit();
+                                        }}
+                                    >
+                                        Edit
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                }
+            }
+
+            // ````````````````````````````````````````````````````
+            class AllPosts extends React.Component {
+                constructor(props) {
+                    super(props);
+                }
+
+                render() {
+                    return (
+                        <div>
+                            <NewPost csrftoken={this.props.csrftoken} />
+                            {this.props.postsData.length > 0 ? (
+                                this.props.postsData.map((post) => {
+                                    return (
+                                        <Post
+                                            updateLike={this.props.updateLike}
+                                            updateBody={this.props.updateBody}
+                                            currentUserUsername={this.props.currentUserUsername}
+                                            profileAction={this.props.profileAction}
+                                            key={post.id}
+                                            id={post.id}
+                                            name={post.author}
+                                            date={post.timestamp}
+                                            body={post.body}
+                                            likes={post.likes}
+                                            liked={post.liked}
+                                        />
+                                    );
+                                })
+                            ) : (
+                                <h2 className="text-center">There are no posts</h2>
+                            )}
+                        </div>
+                    );
+                }
+            }
+
+            // ````````````````````````````````````````````````````
+            class ProfilePage extends React.Component {
+                constructor(props) {
+                    super(props);
+                    this.state = {
+                        profileData: {},
+                    };
+                }
+
+                // get user profile Data from server + database
+                getProfileData = async (username) => {
+                    try {
+                        const response = await fetch(`/profile/${username}`);
+                        const results = await response.json();
+                        this.setState({ profileData: results });
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                // allows for users to follow and unfollow
+                updateFollower = async (input, profileData) => {
+                    var raw = JSON.stringify({ action: `${input}` });
+                    const requestOptions = {
+                        method: "PUT",
+                        body: raw,
+                        credentials: "same-origin",
+                        headers: {
+                            "X-CSRFToken": this.props.csrftoken,
+                            "Content-Type": "application/json",
+                        },
+                        redirect: "follow",
+                    };
+                    try {
+                        const response = await fetch(`follow/${this.state.profileData.username}`, requestOptions);
+                        if (response.status == "204" && input === "follow") {
+                            this.setState({
+                                profileData: { ...this.state.profileData, following: true },
+                            });
+                        } else {
+                            this.setState({
+                                profileData: { ...this.state.profileData, following: false },
+                            });
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                componentDidMount() {
+                    this.getProfileData(this.props.username);
+                }
+
+                render() {
+                    return (
+                        <div>
+                            <Profile
+                                profileData={this.state.profileData}
+                                updateFollower={this.updateFollower.bind(this)}
+                                currentUserUsername={this.props.currentUserUsername}
+                            />
+                            {this.props.postsData.length > 0 ? (
+                                this.props.postsData.map((post) => {
+                                    return (
+                                        <Post
+                                            updateLike={this.props.updateLike}
+                                            updateBody={this.props.updateBody}
+                                            currentUserUsername={this.props.currentUserUsername}
+                                            profilePage={true}
+                                            key={post.id}
+                                            id={post.id}
+                                            name={post.author}
+                                            date={post.timestamp}
+                                            body={post.body}
+                                            likes={post.likes}
+                                            liked={post.liked}
+                                        />
+                                    );
+                                })
+                            ) : (
+                                <h2 className="text-center">{this.props.username} has no posts!</h2>
+                            )}
+                        </div>
+                    );
+                }
+            }
+
+            // ````````````````````````````````````````````````````
+            class Profile extends React.Component {
+                constructor(props) {
+                    super(props);
+                }
+
+                render() {
+                    return (
+                        <div className="profile-section mx-auto container">
+                            <h2 className="text-center">{this.props.profileData.username}</h2>
+                            <div className="d-flex">
+                                <ul className="list-inline mx-auto justify-content-center">
+                                    <p className="list-inline-item">
+                                        Followers: {this.props.profileData.numOfFollowers}
+                                    </p>
+                                    <p className="list-inline-item">Following: {this.props.profileData.numFollowing}</p>
+                                </ul>
+                            </div>
+                            {/* checks to see if CurrentUserUsername is same as profileData.username */}
+                            {this.props.profileData.username !== this.props.currentUserUsername ? (
+                                <div className="buttondiv">
+                                    {/*checks of user is following ProfileData.user*/}
+                                    {this.props.profileData.following ? (
+                                        <button
+                                            onClick={() => {
+                                                this.props.updateFollower("unfollow");
+                                            }}
+                                            className="btn btn-info"
+                                        >
+                                            <i className="bi bi-person-dash-fill"></i> Unfollow
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => {
+                                                this.props.updateFollower("follow");
+                                            }}
+                                            className="btn btn-success"
+                                        >
+                                            <i className="bi bi-person-plus-fill"></i> Follow
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div></div>
+                            )}
+                            <div className="split-line mx-auto container my-4"></div>
+                        </div>
+                    );
+                }
+            }
+
+            // ````````````````````````````````````````````````````
+            class Following extends React.Component {
+                constructor(props) {
+                    super(props);
+                }
+
+                render() {
+                    return (
+                        <div>
+                            {this.props.postsData.length > 0 ? (
+                                this.props.postsData.map((post) => {
+                                    return (
+                                        <Post
+                                            updateLike={this.props.updateLike}
+                                            profileAction={this.props.profileAction}
+                                            key={post.id}
+                                            id={post.id}
+                                            name={post.author}
+                                            date={post.timestamp}
+                                            body={post.body}
+                                            likes={post.likes}
+                                            liked={post.liked}
+                                        />
+                                    );
+                                })
+                            ) : (
+                                <h2 className="text-center">You have no new feed. </h2>
+                            )}
+                        </div>
+                    );
+                }
+            }
+
+            class Paginator extends React.Component {
+                constructor(props) {
+                    super(props);
+                }
+
+                render() {
+                    const prevButton = this.props.postsDataHasPrev ? (
+                        <li className="page-item">
+                            <a
+                                className="page-link"
+                                href="#"
+                                onClick={() => {
+                                    this.props.getPosts(this.props.currentPage, this.props.currentPageCount - 1);
+                                    this.props.setCurrentPageCount(this.props.currentPageCount - 1);
+                                }}
+                                tabIndex="-1"
+                                aria-disabled="false"
+                            >
+                                Previous
+                            </a>
+                        </li>
+                    ) : (
+                        <li className="page-item disabled">
+                            <a className="page-link" href="#" tabIndex="-1" disabled>
+                                Previous
+                            </a>
+                        </li>
+                    );
+
+                    const nextButton = this.props.postsDataHasNext ? (
+                        <li className="page-item">
+                            <a
+                                className="page-link"
+                                href="#"
+                                onClick={() => {
+                                    this.props.getPosts(this.props.currentPage, this.props.currentPageCount + 1);
+                                    this.props.setCurrentPageCount(this.props.currentPageCount + 1);
+                                }}
+                                tabIndex="-1"
+                                aria-disabled="false"
+                            >
+                                Next
+                            </a>
+                        </li>
+                    ) : (
+                        <li className="page-item disabled">
+                            <a className="page-link" href="#" tabIndex="-1" disabled>
+                                Next
+                            </a>
+                        </li>
+                    );
+
+                    const listButtons = [];
+                    for (let page = 1; page <= this.props.maxPages; page++) {
+                        listButtons.push(
+                            <li
+                                className={`page-item ${this.props.currentPageCount === page ? "active" : ""}`}
+                                key={page}
+                            >
+                                <a
+                                    className="page-link"
+                                    onClick={() => {
+                                        this.props.getPosts(this.props.currentPage, page);
+                                        this.props.setCurrentPageCount(page);
+                                    }}
+                                    href="#"
+                                >
+                                    {page}
+                                </a>
+                            </li>
+                        );
+                    }
+
+                    return (
+                        <nav aria-label="Page navigation example mt-4">
+                            <ul className="pagination justify-content-center">
+                                {prevButton}
+                                {listButtons}
+                                {nextButton}
+                            </ul>
+                        </nav>
+                    );
+                }
+            }
+
+            // ````````````````````````````````````````````````````
+            class App extends React.Component {
+                constructor(props) {
+                    super(props);
+                    this.state = {
+                        allPostsPage: true,
+                        profilePage: false,
+                        followingPage: false,
+                        profileToView: null,
+                        currentUserUsername: "",
+                        csrftoken: "",
+                        postsData: [],
+                        currentPage: "all",
+                        currentPageCount: 1,
+                        maxPages: 1,
+                        postsDataHasNext: false,
+                        postsDataHasPrev: false,
+                    };
+                }
+
+                // get the CSRFTOKEN and add to state to pass down to other components
+                getCookie(name) {
+                    var cookieValue = null;
+                    if (document.cookie && document.cookie !== "") {
+                        var cookies = document.cookie.split(";");
+                        for (var i = 0; i < cookies.length; i++) {
+                            var cookie = cookies[i].trim();
+                            if (cookie.substring(0, name.length + 1) === name + "=") {
+                                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                break;
+                            }
+                        }
+                    }
+                    return cookieValue;
+                }
+
+                // calls getCookie() and setState to csrftoken
+                get_csrfToken = () => {
+                    let csrftoken = this.getCookie("csrftoken");
+                    this.setState({
+                        csrftoken: csrftoken,
+                    });
+                };
+
+                // add event listeners to Nav menu buttons to change states
+                addEventListenersToButtons() {
+                    const allPostsButton = document.getElementById("all-posts");
+                    const followingButton = document.getElementById("following");
+                    const currentUserButton = document.getElementById("currentUser");
+                    allPostsButton.addEventListener("click", this.allPostsAction.bind(this));
+                    followingButton.addEventListener("click", this.followingAction.bind(this));
+                    currentUserButton.addEventListener("click", this.profileActionOnCurrentUser.bind(this));
+                }
+
+                // allow for method to be called with parameter.
+                profileActionOnCurrentUser() {
+                    this.profileAction(this.state.currentUserUsername);
+                }
+
+                // to display allposts
+                allPostsAction(event) {
+                    event.preventDefault();
+                    this.getPosts("all");
+                    document.getElementById("following").classList.remove("font-weight-bold");
+                    document.getElementById("all-posts").classList.add("font-weight-bold");
+                    this.setState({
+                        allPostsPage: true,
+                        profilePage: false,
+                        followingPage: false,
+                        profileToView: null,
+                        currentPage: "all",
+                        currentPageCount: 1,
+                    });
+                }
+
+                // to display posts on follow page
+                followingAction(event) {
+                    event.preventDefault();
+                    this.getPosts("following");
+                    document.getElementById("all-posts").classList.remove("font-weight-bold");
+                    document.getElementById("following").classList.add("font-weight-bold");
+                    this.setState({
+                        allPostsPage: false,
+                        profilePage: false,
+                        followingPage: true,
+                        profileToView: null,
+                        currentPage: "following",
+                        currentPageCount: 1,
+                    });
+                }
+
+                // to display posts on profile page
+                profileAction(username) {
+                    this.getPosts(`${username}`);
+                    document.getElementById("all-posts").classList.remove("font-weight-bold");
+                    document.getElementById("following").classList.remove("font-weight-bold");
+                    this.setState({
+                        allPostsPage: false,
+                        profilePage: true,
+                        followingPage: false,
+                        profileToView: username,
+                        currentPage: username,
+                        currentPageCount: 1,
+                    });
+                }
+
+                // Methods for requests to server to get information
+                // get currentUserUsername. Runs as soon as component mounts
+                getCurrentUserUsername = async () => {
+                    try {
+                        const response = await fetch(`currentuser`);
+                        const results = await response.json();
+                        this.setState({ currentUserUsername: results });
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                // gets posts.
+                // action could be 'all', 'following' or a username.
+                // page number is optional, defaults at 1.
+                getPosts = async (action, page = 1) => {
+                    try {
+                        const response = await fetch(`/posts/${action}/${page}`);
+                        const results = await response.json();
+                        this.setState({
+                            postsData: results.posts,
+                            maxPages: results.max_pages[0],
+                            postsDataHasNext: results.pageHasNext[0],
+                            postsDataHasPrev: results.pageHasPrev[0],
+                        });
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                setCurrentPageCount(page) {
+                    this.setState({
+                        currentPageCount: page,
+                    });
+                }
+
+                // updates the state when user likes or unlikes the state. called by updateLike()
+                updatePostLikedState(action, postId) {
+                    const updatePostsData = [...this.state.postsData];
+                    const indexOfPostId = updatePostsData.findIndex((item) => item.id == postId);
+                    if (action === "like") {
+                        updatePostsData[indexOfPostId].liked = true;
+                        updatePostsData[indexOfPostId].likes++;
+                    } else if (action === "unlike") {
+                        updatePostsData[indexOfPostId].liked = false;
+                        updatePostsData[indexOfPostId].likes--;
+                    } else {
+                        console.log(`Action parameter is neither 'like' nor 'unlike'`, action);
+                    }
+                    this.setState({ postsData: updatePostsData });
+                }
+
+                // allows for users to follow and unfollow
+                // parameters: action => "like", "unlike" | postID => post.id
+                updateLike = async (action, postId) => {
+                    var raw = JSON.stringify({ action: `${action}` });
+                    const requestOptions = {
+                        method: "PUT",
+                        body: raw,
+                        credentials: "same-origin",
+                        headers: {
+                            "X-CSRFToken": this.state.csrftoken,
+                            "Content-Type": "application/json",
+                        },
+                        redirect: "follow",
+                    };
+                    try {
+                        const response = await fetch(`posts/like/${postId}`, requestOptions);
+                        if (response.status == "204") {
+                            this.updatePostLikedState(action, postId);
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                // updates the state when user likes or unlikes the state. called by updateLike()
+                updatePostBodyState(bodyContent, postId) {
+                    const updatePostsData = [...this.state.postsData];
+                    const indexOfPostId = updatePostsData.findIndex((item) => item.id == postId);
+                    updatePostsData[indexOfPostId].body = bodyContent;
+                    this.setState({ postsData: updatePostsData });
+                }
+
+                // allows for users to follow and unfollow
+                // parameters: action => "like", "unlike" | postID => post.id
+                updateBody = async (bodyContent, postId) => {
+                    var raw = JSON.stringify({ body: `${bodyContent}` });
+                    const requestOptions = {
+                        method: "PUT",
+                        body: raw,
+                        credentials: "same-origin",
+                        headers: {
+                            "X-CSRFToken": this.state.csrftoken,
+                            "Content-Type": "application/json",
+                        },
+                        redirect: "follow",
+                    };
+                    try {
+                        const response = await fetch(`posts/edit/${postId}`, requestOptions);
+                        if (response.status == "204") {
+                            this.updatePostBodyState(bodyContent, postId);
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                componentDidMount() {
+                    this.get_csrfToken();
+                    this.getPosts("all");
+                    this.getCurrentUserUsername();
+                    this.addEventListenersToButtons();
+                    document.getElementById("all-posts").classList.add("font-weight-bold");
+                }
+
+                render() {
+                    return (
+                        <div className="mx-auto container">
+                            {this.state.allPostsPage && (
+                                <AllPosts
+                                    profileAction={this.profileAction.bind(this)}
+                                    updateLike={this.updateLike.bind(this)}
+                                    updateBody={this.updateBody.bind(this)}
+                                    csrftoken={this.state.csrftoken}
+                                    currentUserUsername={this.state.currentUserUsername}
+                                    postsData={this.state.postsData}
+                                />
+                            )}
+                            {this.state.profilePage && (
+                                <ProfilePage
+                                    updateLike={this.updateLike.bind(this)}
+                                    updateBody={this.updateBody.bind(this)}
+                                    username={this.state.profileToView}
+                                    csrftoken={this.state.csrftoken}
+                                    currentUserUsername={this.state.currentUserUsername}
+                                    postsData={this.state.postsData}
+                                />
+                            )}
+                            {this.state.followingPage && (
+                                <Following
+                                    updateLike={this.updateLike.bind(this)}
+                                    profileAction={this.profileAction.bind(this)}
+                                    postsData={this.state.postsData}
+                                />
+                            )}
+                            <Paginator
+                                setCurrentPageCount={this.setCurrentPageCount.bind(this)}
+                                getPosts={this.getPosts.bind(this)}
+                                currentPage={this.state.currentPage}
+                                currentPageCount={this.state.currentPageCount}
+                                maxPages={this.state.maxPages}
+                                postsDataHasNext={this.state.postsDataHasNext}
+                                postsDataHasPrev={this.state.postsDataHasPrev}
+                            />
+                        </div>
+                    );
+                }
+            }
+
+            ReactDOM.render(<App />, document.querySelector("#react_post"));
+        </script>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
